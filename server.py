@@ -31,6 +31,22 @@ async def get_user(telegram_id: int):
             row = await cursor.fetchone()
             return dict(row) if row else None
 
+async def get_or_create_user(telegram_id: int, name: str = None):
+    """Foydalanuvchini olish, yo'q bo'lsa avtomatik yaratish"""
+    user = await get_user(telegram_id)
+    if user:
+        return user
+    # Avtomatik yaratish
+    display_name = name or f"Foydalanuvchi{telegram_id % 10000}"
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO users (telegram_id, phone, name) VALUES (?, ?, ?)",
+            (telegram_id, "", display_name)
+        )
+        await db.commit()
+    logger.info(f"🆕 Yangi foydalanuvchi yaratildi: {display_name} ({telegram_id})")
+    return await get_user(telegram_id)
+
 async def get_messages(limit=50):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -248,24 +264,26 @@ async def websocket_handler(request):
 
                 if action == 'auth':
                     user_id = data.get('user_id')
-                    user = await get_user(user_id)
+                    name = data.get('name')  # Telegram'dan ismi kelsa ishlatamiz
+
+                    # Bazada yo'q bo'lsa avtomatik yaratamiz
+                    user = await get_or_create_user(user_id, name)
+
                     if user and not user['is_blocked']:
                         connected_clients[user_id] = ws
-                        # Oxirgi xabarlarni yuborish
                         msgs = await get_messages(50)
                         await ws.send_str(json.dumps({
                             "type": "init",
                             "messages": msgs,
                             "user": {k: v for k, v in user.items() if k != 'phone'}
                         }))
-                        # Boshqalarga "kirdi" deb xabar
                         await broadcast({
                             "type": "user_join",
                             "user": {"id": user_id, "name": user['name'], "character": user['character']}
                         }, exclude_id=user_id)
                         logger.info(f"✅ {user['name']} ({user_id}) ulandi")
                     else:
-                        await ws.send_str(json.dumps({"type": "error", "message": "Auth failed"}))
+                        await ws.send_str(json.dumps({"type": "error", "message": "Siz bloklangansiz"}))
                         await ws.close()
                         break
 
