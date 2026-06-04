@@ -1,30 +1,25 @@
 """
-Ikkalasini bir vaqtda ishga tushirish
+server.py va bot.py ni bir vaqtda ishga tushirish
 """
 import asyncio
 import logging
 import os
-import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def main():
-    from bot.server import create_app, init_db
-    from bot.bot import dp, bot
+    # server.py dan import
+    import server
+    import bot as bot_module
     from aiohttp import web
 
-    # Database ni ishga tushirish
-    await init_db()
+    # Database
+    await server.init_db()
 
-    # Server va bot ni parallel ishga tushirish
+    # HTTP server
     port = int(os.environ.get('PORT', 8080))
-
-    # aiohttp server
-    app = create_app()
-    app.on_startup.append(lambda a: asyncio.create_task(asyncio.sleep(0)))
-
+    app = server.create_app()
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', port)
@@ -33,8 +28,7 @@ async def main():
 
     # Bot polling
     logger.info("🤖 Bot ishga tushdi!")
-    await dp.start_polling(bot)
+    await bot_module.dp.start_polling(bot_module.bot)
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())
