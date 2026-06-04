@@ -5,6 +5,7 @@ aiohttp asosida WebSocket + REST API
 import asyncio
 import json
 import logging
+import os
 import aiosqlite
 from datetime import datetime, date
 from aiohttp import web
@@ -386,7 +387,61 @@ def create_app():
 
     return app
 
+async def on_startup(app):
+    await init_db()
+
 if __name__ == '__main__':
+    import asyncio
+    port = int(os.environ.get('PORT', 8080))
     app = create_app()
-    logger.info("🚀 API Server port 8080 da ishga tushdi")
-    web.run_app(app, host='0.0.0.0', port=8080)
+    app.on_startup.append(on_startup)
+    logger.info(f"🚀 API Server port {port} da ishga tushdi")
+    web.run_app(app, host='0.0.0.0', port=port)
+
+# ==================== DATABASE INIT ====================
+async def init_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                telegram_id INTEGER UNIQUE NOT NULL,
+                phone TEXT DEFAULT '',
+                name TEXT NOT NULL,
+                bio TEXT DEFAULT '',
+                photo_url TEXT DEFAULT '',
+                character TEXT DEFAULT 'man',
+                balance INTEGER DEFAULT 0,
+                is_blocked INTEGER DEFAULT 0,
+                daily_delete_count INTEGER DEFAULT 0,
+                last_delete_date TEXT DEFAULT '',
+                daily_msg_limit INTEGER DEFAULT -1,
+                daily_msg_count INTEGER DEFAULT 0,
+                last_msg_date TEXT DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                joined_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                character_effect TEXT DEFAULT 'none',
+                is_deleted INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(telegram_id)
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS character_counts (
+                character TEXT PRIMARY KEY,
+                count INTEGER DEFAULT 0
+            )
+        """)
+        for char in ["black", "white", "admin_char", "atilla"]:
+            await db.execute(
+                "INSERT OR IGNORE INTO character_counts (character, count) VALUES (?, 0)",
+                (char,)
+            )
+        await db.commit()
+    logger.info("✅ Database tayyor")
