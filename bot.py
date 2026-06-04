@@ -1,4 +1,5 @@
 import logging
+import os
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
@@ -15,8 +16,8 @@ import json
 from datetime import datetime
 
 # ==================== SOZLAMALAR ====================
-BOT_TOKEN = "8856638354:AAF8kV9O3nmBM_tQAeCRny_wh48gUcbAImo"
-WEBAPP_URL = "https://lambent-profiterole-44d808.netlify.app"  # Mini App URL
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://tanishuv.up.railway.app")  # Mini App URL
 ADMIN_ID = 8330377593
 ADMIN_CARD = "9860080151682814"
 DB_PATH = "tanishuv.db"
