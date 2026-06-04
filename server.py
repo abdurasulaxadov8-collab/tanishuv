@@ -62,7 +62,7 @@ async def save_message(user_id: int, content: str, effect: str = "none"):
             "id": msg_id,
             "user_id": user_id,
             "content": content,
-            "effect": effect,
+            "character_effect": effect,
             "name": user['name'],
             "character": user['character'],
             "photo_url": user.get('photo_url', ''),
